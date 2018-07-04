@@ -186,6 +186,7 @@ SET /P time.pluperfect=Pluperfect past verbal time suffix (used to make):
 SET /P time.preteritous=Preteritous past verbal time suffix (had made): 
 SET /P time.pseudopast=Pseudopast/continuous verbal time suffix (have been making): 
 SET /P time.subpast=Subpast verbal time suffix (would have maken): 
+SET /P time.subpresent=Simple subpresent verbal time suffix (have made): 
 SET /P time.future=Simple future verbal time suffix (will make): 
 SET /P time.subfuture=Subfuture verbal time suffix (would make): 
 
@@ -194,6 +195,7 @@ ECHO SET time.pluperfect=%time.pluperfect%>>lang_%langname%.bat
 ECHO SET time.preteritous=%time.preteritous%>>lang_%langname%.bat
 ECHO SET time.pseudopast=%time.pseudopast%>>lang_%langname%.bat
 ECHO SET time.subpast=%time.subpast%>>lang_%langname%.bat
+ECHO SET time.subpresent=%time.subpast%>>lang_%langname%.bat
 ECHO SET time.future=%time.future%>>lang_%langname%.bat
 ECHO SET time.subfuture=%time.subfuture%>>lang_%langname%.bat
 

@@ -212,6 +212,8 @@ verbal_tenses = {
 auxiliary_tenses = {
     "WILL": "future",
     "WOULD": "subfuture",
+    "HAVE": "subpresent",
+    "HAS": "subpresent",
     "HAD": "preteritous",
     "USED TO": "pluperfect",
     "HAVE BEEN": "pseudopast",
@@ -309,6 +311,11 @@ class BLTLanguage(object):
                 
             elif word.upper() == 'THE':
                 continue
+                
+            elif word.upper() in ('WILL', 'HAVE', 'HAD', 'WOULD', 'HAS') and len(synth) > index + 1 and synth[index + 1][1][:2] == 'VB':
+                prev = (word, tag, (historic[index - 1] if index > 0 else None))                    
+                historic.append((word, tag))
+                continue
         
             elif tag == 'POS':
                 continue
@@ -332,6 +339,15 @@ class BLTLanguage(object):
                 if word.lower().startswith('en') and word.lower().endswith('d'):
                     word = word[2:-1].lower()
                     genit = 'genitive'
+                    
+                elif word.lower().endswith('ful'):
+                    word = re.sub(r'iful$', 'yful', word)
+                    
+                if tag == 'JJR':
+                    word = re.sub(r'i$', 'y', word[:-2])
+                
+                if tag == 'JJS':
+                    word = re.sub(r'i$', 'y', word[:-3])
             
                 words.append(BLTAdjective(self.radicals_for(re.sub(r'(?:ful|less)+$', '', word.lower())),
                     genitivity=(genit or ('genitive' if word.lower().endswith('ful') else ('ingenitive' if word.lower().endswith('less') else None))),
