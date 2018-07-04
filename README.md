@@ -34,11 +34,11 @@ lexically complex words using multiple radicals, with **ligations** in between.
 **purpose** (*"You did; did I? (Please) do. To do, doing."*, another suffix!), and **activity versus passivity**
 (*"I painted, I'm being painted"*).
 
-- Adjectives support genitivity (*beauti**ful***), *in*genitivity (*reck**less***), comparativity (*bigg**er***),
+- Adjectives support genitivity (*beauti**ful***), [in]genitivity (*reck**less***), comparativity (*bigg**er***),
 superlativity (*bigg**est***), and negation, which can be either as a prefix (like in Greek), or as an adverb
 (like in English).
 
-- Nouns support possessivity (*Andy**'s** toys*), gender (***she-**wolf*), degree (***big** car*), plurality (*boy**s***),
+- Nouns support possessivity (*Andy['s] toys*), gender (***she-**wolf*), degree (***big** car*), plurality (*boy**s***),
 and even a way to convert other words into nouns (*beaut**y***)!
 
 ## That all sounds nice, but are there reasons I should _NOT_ use the BLT?
