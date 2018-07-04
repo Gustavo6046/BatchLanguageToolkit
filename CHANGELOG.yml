@@ -1,0 +1,10 @@
+"vtrack_version": "0.1.1"
+"software_name": "Batch Language Toolkit"
+"software_tags": ['language', 'translator', 'language maker', 'maker', 'batch', 'python']
+"versions":
+    -   name: "v2018.07.04.1"
+        changes:
+            - "Adopted my VTrack version tracking system."
+        
+        todo: {}
+        done: []
