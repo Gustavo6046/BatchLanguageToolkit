@@ -403,7 +403,7 @@ class BLTLanguage(object):
                     continue
             
             else:
-                words.append(BLTRaw(word))
+                words.append(BLTRaw(word.lower()))
                 
             prev = (word, tag, (historic[-1] if len(historic) > 0 else None))
             historic.append((word, tag))
