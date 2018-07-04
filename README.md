@@ -34,7 +34,7 @@ lexically complex words using multiple radicals, with **ligations** in between.
 **purpose** (*"You did; did I? (Please) do. To do, doing."*, another suffix!), and **activity versus passivity**
 (*"I painted, I'm being painted"*).
 
-- Adjectives support genitivity (*beauti**ful***), _in_genitivity (*reck**less***), comparativity (*bigg**er***),
+- Adjectives support genitivity (*beauti**ful***), *in*genitivity (*reck**less***), comparativity (*bigg**er***),
 superlativity (*bigg**est***), and negation, which can be either as a prefix (like in Greek), or as an adverb
 (like in English).
 
