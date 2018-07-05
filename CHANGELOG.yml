@@ -8,3 +8,10 @@
         
         todo: {}
         done: []
+        
+    -   name: "v2018.07.05.1"
+        changes:
+            - "Fixed issues with adjectives, among many other bug fixes."
+            
+        todo: {}
+        done: []

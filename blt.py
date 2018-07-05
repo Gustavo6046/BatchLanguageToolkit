@@ -196,6 +196,7 @@ pronoun_people = {
     "SHE": 'third',
     "IT": 'third',
     "THEY": 'third',
+    "THEM": 'third',
 }
 
 genitive_pronoun_people = {
@@ -211,6 +212,8 @@ genitive_pronoun_people = {
     "THEIR": 'third',
 }
 
+remove_y = "AEIOUDLT"
+
 pronoun_plurality = {
     "I": False,
     "ME": False,
@@ -224,6 +227,7 @@ pronoun_plurality = {
     "SHE": False,
     "IT": False,
     "THEY": True,
+    "THEM": True,
 }
 
 genitive_pronoun_plurality = {
@@ -325,7 +329,17 @@ class BLTLanguage(object):
         return res
         
     def translate(self, english_text):
-        text = nltk.word_tokenize(english_text)
+        for i, l in enumerate(english_text):
+            if l in '.!?':
+                i2 = i
+                
+                while i2 < len(english_text) and english_text[i2] in '.!? ':
+                    i2 += 1
+                    
+                if i2 < len(english_text):
+                    english_text = english_text[:i2] + english_text[i2].lower() + english_text[i2 + 1:]
+    
+        text = nltk.word_tokenize(english_text[0].lower() + english_text[1:])
         tags = [tag for tag in nltk.pos_tag(text)]
         puncts = []
         
@@ -413,7 +427,17 @@ class BLTLanguage(object):
                     genit = 'genitive'
                     
                 elif word.lower().endswith('ful'):
-                    word = re.sub(r'iful$', 'yful', word)
+                    word = re.sub(r'iful$', 'y', word)
+                    genit = 'genitive'
+                    
+                elif word.lower().endswith('y'):
+                    if word.upper()[-2] in remove_y:
+                        word = re.sub(r'y$', '', word)
+                    
+                    else:
+                        word = re.sub(r'y$', 'e', word)
+                        
+                    genit = 'genitive'
                     
                 if tag == 'JJR':
                     word = re.sub(r'i$', 'y', word[:-2])
