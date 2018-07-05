@@ -1,5 +1,5 @@
 # Batch Language Toolkit
-**Galactic languages, as close from your tongue as your computer is from your chair.**
+**Galactic languages, as close from your tongue as your computer screen is from your chair.**
 
 The Batch Language Toolkit is a simplistic attempt to do a flexible language superset, upon which many
 similarly-structured languages can be created, fixed, and translated into, using the Python and
@@ -8,7 +8,7 @@ Batch interfaces.
 ## But... I don't know Latko!
 
 It is simple to translate. Just replace Latko by the language of your choice, in these examples, and
-you're good to go! No easiness scale is big enough to measure the practicity level of this.
+you're good to go! No easiness scale is big enough to measure the practicality level of this.
  
 **Batch:** _(manual, requires Windows)_
 
