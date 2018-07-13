@@ -4,7 +4,43 @@ import nltk
 import inflect
 
 from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.corpus import wordnet as wn
 
+#=============
+# Credits to bogs @ https://stackoverflow.com/a/16752477/5129091
+# This is a modified version of their code.
+def nounify(adjective_word):
+    """ Transform a verb to the closest noun: die -> death """
+    verb_synsets = wn.synsets(adjective_word, pos=wn.ADJECTIVE)
+
+    # Word not found
+    if not adjective_synsets:
+        return []
+
+    # Get all adjective lemmas of the word
+    adjective_lemmas = [l for s in adjective_synsets \
+                   for l in s.lemmas() if s.name().split('.')[1] == wn.ADJECTIVE]
+
+    # Get related forms
+    derivationally_related_forms = [(l, l.derivationally_related_forms()) \
+                                    for l in    adjective_lemmas]
+
+    # filter only the nouns
+    related_noun_lemmas = [l for drf in derivationally_related_forms \
+                           for l in drf[1] if l.synset().name().split('.')[1] == 'n']
+
+    # Extract the words from the lemmas
+    words = [l.name() for l in related_noun_lemmas]
+    len_words = len(words)
+
+    # Build the result in the form of a list containing tuples (word, probability)
+    result = [(w, float(words.count(w))/len_words) for w in set(words)]
+    result.sort(key=lambda w: -w[1])
+
+    # return all the possibilities sorted by probability
+    return result
+
+#=============
 
 eng = inflect.engine()
 lemmatizer = WordNetLemmatizer()
@@ -226,8 +262,9 @@ genitive_pronoun_people = {
     "THEIR": 'third',
 }
 
-remove_y = "AEIOUDLT"
-remove_ous = "AEIOUDLT"
+remove_y = "AEIOUDLTR"
+remove_ous = "AEIOUDLTR"
+remove_en = "AEIOUDLTR"
 
 pronoun_plurality = {
     "I": False,
@@ -344,17 +381,19 @@ class BLTLanguage(object):
             ) else sn[1]
         )
         for i, sn in enumerate(synth))
-        res = res[0].upper() + res[1:]
         
-        for i, l in enumerate(res):
-            if l in '.!?':
-                i2 = i
-                
-                while i2 < len(res) and res[i2] in '.!? ':
-                    i2 += 1
+        if len(res) > 0:
+            res = res[0].upper() + res[1:]
+            
+            for i, l in enumerate(res):
+                if l in '.!?':
+                    i2 = i
                     
-                if i2 < len(res):
-                    res = res[:i2] + res[i2].upper() + res[i2 + 1:]
+                    while i2 < len(res) and res[i2] in '.!? ':
+                        i2 += 1
+                        
+                    if i2 < len(res):
+                        res = res[:i2] + res[i2].upper() + res[i2 + 1:]
                 
         return res
         
@@ -387,6 +426,8 @@ class BLTLanguage(object):
         past_bracket = False
         
         for index, (word, tag) in enumerate(tags):
+            # print("'" + word + "':", tag)
+        
             if re.match(r"^[\)\]\}\\\/]+$", word):
                 words.append(BLTRaw(word, True))
                 past_bracket = True
@@ -398,6 +439,9 @@ class BLTLanguage(object):
                 
             elif re.match(r"^[\=\-\_\*]+$", word):
                 words.append(BLTRaw(word, True))
+                continue
+                
+            elif word.upper() == "N'T":
                 continue
            
             elif word.upper() == 'THIS':
@@ -413,15 +457,15 @@ class BLTLanguage(object):
                 words.append(BLTIndefinitePronoun(subtype="external", plural=True))
         
             elif word.upper() in ('NO', 'NOT') and len(tags) > index + 1 and tags[index + 1][1][:2] == 'JJ':
-                prev = (word, tag, (historic[index - 1] if index > 0 else None))                    
+                prev = (word, tag, (historic[index - 1] if index > 0 and len(historic) > index - 1 else None))                    
                 historic.append((word, tag))
                 continue
                 
             elif word.upper() == 'THE':
                 continue
                 
-            elif word.upper() in ('WILL', 'HAVE', 'HAD', 'WOULD', 'HAS') and len(tags) > index + 1 and tags[index + 1][1][:2] == 'VB':
-                prev = (word, tag, (historic[index - 1] if index > 0 else None))                    
+            elif word.upper() in ('WILL', 'HAVE', "'VE", 'HAD', 'WOULD', 'HAS') and len(tags) > index + 1 and tags[index + 1][1][:2] == 'VB':
+                prev = (word, tag, (historic[index - 1] if index > 0 and len(historic) > index - 1 else None))                    
                 historic.append((word, tag))
                 continue
         
@@ -438,7 +482,7 @@ class BLTLanguage(object):
                 if word.lower().endswith('ness'): 
                     w = re.sub('i$', 'y', re.sub(r'ness$', '', word[:-4]))
                     
-                    if nltk.pos_tag((w,))[0][1][:2] in ('JJ', 'RB'):
+                    if nltk.pos_tag((w,))[0][1][:2] in ('JJ', 'NN', 'RB'):
                         word = w
                         convert = True
             
@@ -454,27 +498,42 @@ class BLTLanguage(object):
                     possessive=index < len(tags) - 1 and tags[index + 1][1] == 'POS'
                 ))
                 
-            elif tag[:2] == ('JJ'):
+            elif tag[:2] == 'JJ':
                 genit = None
                 neg = False
             
                 for d in ('dis', 'un', 'non-', 'non', 'dis'):
-                    if word.lower().startswith(d) and nltk.pos_tag((word[len(d):],))[0][1][:2] in ('JJ', 'NN', 'RB'):
-                        neg = True
-                        word = word[len(d):]
-                        break
+                    if word.lower().startswith(d):
+                        if nltk.pos_tag((word[len(d):],))[0][1][:2] in ('JJ', 'NN', 'RB'):
+                            neg = True
+                            word = word[len(d):]
+                            break
+                            
+                        elif nltk.pos_tag((word[len(d):],))[0][1][:2] == 'VB' and word.lower().endswith('ed'):
+                            neg = True
+                            word = word[len(d):-2]
+                            break
                     
-                if word.lower().startswith('en') and word.lower().endswith('d'):
+                if word.lower().startswith('en') and word.lower().endswith('d') and nltk.pos_tag((word.lower()[:-1],))[0][1][2:-1] in ('VB', 'JJ', 'NN', 'RB'):
                     word = word[2:-1].lower()
+                    
+                    if word[-1].upper() in remove_en.upper():
+                        word = word[:-1]
+                    
                     genit = 'genitive'
                     
-                elif word.lower().endswith('ful'):
+                elif word.lower().endswith('ful') and nltk.pos_tag((word.lower()[:-3],))[0][1][:2] in ('VB', 'JJ', 'NN', 'RB'):
                     word = re.sub(r'ful$', '', word)
                     word = re.sub(r'i$', 'y', word)
                     genit = 'genitive'
                     
-                elif word.lower().endswith('ous'):
-                    if word[-2] in remove_ous:
+                elif word.lower().endswith('less') and nltk.pos_tag((word.lower()[:-4],))[0][1][:2] in ('VB', 'JJ', 'NN', 'RB'):
+                    word = re.sub(r'less$', '', word)
+                    word = re.sub(r'i$', 'y', word)
+                    genit = 'ingenitive'
+                    
+                elif word.lower().endswith('ous') and nltk.pos_tag((word.lower()[:-3],))[0][1][:2] in ('VB', 'JJ', 'NN', 'RB'):
+                    if word[-2].upper() in remove_ous.upper():
                         word = re.sub(r'ous$', '', word)
                         
                     else:
@@ -484,7 +543,7 @@ class BLTLanguage(object):
                     word = re.sub(r'cy$', 'sh', word)
                     genit = 'genitive'
                     
-                elif word.lower().endswith('y'):
+                elif word.lower().endswith('y') and nltk.pos_tag((word.lower()[:-1],))[0][1] in ('JJ', 'JJC', 'JJR', 'RB'):
                     if word[-2].upper() in remove_y.upper():
                         word = re.sub(r'y$', '', word)
                     
@@ -504,10 +563,20 @@ class BLTLanguage(object):
                     word = re.sub(r'i$', 'y', word[:-2])
                 
                 if tag == 'JJS':
-                    word = re.sub(r'i$', 'y', word[:-3])
+                    word = re.sub(r'i', 'y', word[:-3])
             
-                words.append(BLTAdjective(self.radicals_for(re.sub(r'(?:ful|less)+$', '', word.lower())),
-                    genitivity=(genit or ('genitive' if word.lower().endswith('ful') else ('ingenitive' if word.lower().endswith('less') else None))),
+                base = nounify(word)
+                
+                if len(base) < 1:
+                    base = word
+                    
+                else:
+                    base = base[0][0]
+                    
+                print(word, base)
+            
+                words.append(BLTAdjective(self.radicals_for(base),
+                    genitivity=genit,
                     relativity=('comparative' if tag == 'JJR' else ('superlative' if tag == 'JJS' else None)),
                     negated=neg or (prev is not None and prev[0].upper() in ('NO', 'NOT'))
                 ))
@@ -534,7 +603,8 @@ class BLTLanguage(object):
                     continue
             
                 passive = tag in ('VBN', 'VBG') and prev != None and prev[1][2:] == 'VB'
-                negate = prev is not None and len({prev[0].lower(), (prev[2] or ('',))[0].lower()} & {'no', 'not'}) == 1
+                negate = prev is not None and len({prev[0].lower(), (prev[2] or ('',))[0].lower()} & {'no', 'not'}) == 1 or (len(tags) > index + 1 and tags[index + 1][0] == "n't")
+                
                 tense = None
                 person = 'third'
                 plural = False
