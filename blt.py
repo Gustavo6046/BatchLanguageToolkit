@@ -87,6 +87,7 @@ class BLTVerb(object):
         self.kind = kind
         self.passive = passive
         self.negated = negated
+        self.spacing = True
             
         self.time = tense
         
@@ -99,6 +100,7 @@ class BLTAdjective(object):
         self.genitivity = genitivity
         self.relativity = relativity
         self.negated = negated
+        self.spacing = True
         
         if genitivity not in (None, 'genitive', 'ingenitive'):
             raise ValueError("Invalid adjective genitivity value: " + repr(genitivity))
@@ -117,6 +119,7 @@ class BLTNoun(object):
         self.plural = plural
         self.convert = convert
         self.possessive = possessive
+        self.spacing = True
         
     def synthesize(self, defs):
         return defs.unescape_batch('%ligation%'.join('%rad.{}%'.format(r) for r in self.radicals) + ('%ending.nominal%' if self.convert else '') + '%ending.nominal.gender.{}%'.format(self.gender) + ('%ending.nominal.degree.{}%'.format(self.degree) if self.degree else '') + ('%ending.nominal.plural%' if self.plural else '') + ('%ending.nominal.genitive%' if self.possessive else ''))
@@ -126,6 +129,7 @@ class BLTGeneric(object):
         self.rad = radical
         self.plural = plural
         self.possessive = possessive
+        self.spacing = True
         
         if isinstance(self.rad, str):
             self.rad = (radical,)
@@ -137,6 +141,7 @@ class BLTAdverb(object):
     def __init__(self, radicals, adjective_adverb):
         self.radicals = radicals
         self.adj = adjective_adverb
+        self.spacing = True
         
     def synthesize(self, defs):
         return defs.unescape_batch('%ligation%'.join('%rad.{}%'.format(r) for r in self.radicals) + ('%adverb.adjective%' if self.adj else '%adverb.verbal%'))
@@ -156,6 +161,7 @@ class BLTDefinitePronoun(object):
         self.kind = kind
         self.person = person
         self.plurality = ("plural" if plural else "singular")
+        self.spacing = True
         
     def synthesize(self, defs):
         return defs.unescape_batch('%pronoun.{}.{}.{}%'.format(self.kind, self.person, self.plurality))
@@ -165,6 +171,7 @@ class BLTIndefinitePronoun(object):
         self.kind = kind
         self.subtype = subtype
         self.plurality = ("plural" if plural else "singular")
+        self.spacing = True
         
     def synthesize(self, defs):
         return defs.unescape_batch('%pronoun.indefinite.{}.{}%%pronoun.indefinite.{}%'.format(self.kind, self.subtype, self.plurality))
@@ -186,14 +193,21 @@ tobe_plurality = {
 pronoun_people = {
     "I": 'first',
     "ME": 'first',
+    "MY": 'first',
     "WE": 'first',
+    "OUR": 'first',
+    "US": 'first',
     "YOU": 'second',
+    "YOUR": 'second',
     "THOU": 'second',
     "THEE": 'second',
+    "THY": 'second',
+    "THINE": 'second',
     "YE": 'second',
     "HIM": 'third',
     "HE": 'third',
     "SHE": 'third',
+    "HER": 'third',
     "IT": 'third',
     "THEY": 'third',
     "THEM": 'third',
@@ -213,20 +227,29 @@ genitive_pronoun_people = {
 }
 
 remove_y = "AEIOUDLT"
+remove_ous = "AEIOUDLT"
 
 pronoun_plurality = {
     "I": False,
     "ME": False,
     "WE": True,
+    "US": True,
     "YOU": False,
     "THOU": False,
     "THEE": True,
     "YE": False,
     "HIM": False,
     "HE": False,
+    "HER": False,
     "SHE": False,
     "IT": False,
     "THEY": True,
+    "THEM": True,
+    "MY": False,
+    "OUR": True,
+    "THY": False,
+    "THINE": True,
+    "YOUR": False,
     "THEM": True,
 }
 
@@ -313,7 +336,14 @@ class BLTLanguage(object):
             
     def synthesize(self, words):
         synth = tuple(((w, w.synthesize(self._defs)) if not isinstance(w, str) else (w, None)) for w in words)
-        res = ''.join((' ' + sn[1] if (not (isinstance(sn[0], BLTRaw) and not sn[0].spacing) and i > 0) else sn[1]) for i, sn in enumerate(synth))
+        res = ''.join(
+            (
+                (sn[1] + ' ' if sn[0].spacing == 'post' else ' ' + sn[1]
+            ) if sn[0].spacing is not False and (
+                (i > 0 if sn[0].spacing != 'post' else i + 1 < len(synth))
+            ) else sn[1]
+        )
+        for i, sn in enumerate(synth))
         res = res[0].upper() + res[1:]
         
         for i, l in enumerate(res):
@@ -330,16 +360,17 @@ class BLTLanguage(object):
         
     def translate(self, english_text):
         for i, l in enumerate(english_text):
-            if l in '.!?':
+            if l in '.!?' or i == 0:
                 i2 = i
                 
                 while i2 < len(english_text) and english_text[i2] in '.!? ':
                     i2 += 1
                     
-                if i2 < len(english_text):
+                if i2 < len(english_text) and not (english_text[i2] == 'I' and (len(english_text) == i2 + 1 or english_text[i2 + 1] == ' ') and (i2 == 0 or english_text[i2 - 1] == ' ')):
                     english_text = english_text[:i2] + english_text[i2].lower() + english_text[i2 + 1:]
+                    # print(english_text[i2] == 'I', (len(english_text) == i2 + 1 or english_text[i2 + 1] == ' '), (i2 == 0 or english_text[i2 - 1] == ' '))
     
-        text = nltk.word_tokenize(english_text[0].lower() + english_text[1:])
+        text = nltk.word_tokenize(english_text)
         tags = [tag for tag in nltk.pos_tag(text)]
         puncts = []
         
@@ -352,10 +383,24 @@ class BLTLanguage(object):
         
         words = []
         historic = []
-        prev = None
+        prev = lprev = None
+        past_bracket = False
         
         for index, (word, tag) in enumerate(tags):
-            if word.upper() == 'THIS':
+            if re.match(r"^[\)\]\}\\\/]+$", word):
+                words.append(BLTRaw(word, True))
+                past_bracket = True
+                continue
+                
+            elif re.match(r"^[\(\[\{]+$", word):
+                words.append(BLTRaw(word, False))
+                continue
+                
+            elif re.match(r"^[\=\-\_\*]+$", word):
+                words.append(BLTRaw(word, True))
+                continue
+           
+            elif word.upper() == 'THIS':
                 words.append(BLTIndefinitePronoun())
                 
             elif word.upper() == 'THESE':
@@ -385,7 +430,11 @@ class BLTLanguage(object):
                 
             elif tag in ('NN', 'NNS'):
                 convert = False
-            
+                
+                if '-' in word and word.lower() not in self.composites:
+                    # Add implicit composite word.
+                    self.add_composite((eng.singular_noun(word) or word), *(eng.singular_noun(word) or word).split('-'))
+                    
                 if word.lower().endswith('ness'): 
                     w = re.sub('i$', 'y', re.sub(r'ness$', '', word[:-4]))
                     
@@ -393,15 +442,8 @@ class BLTLanguage(object):
                         word = w
                         convert = True
             
-                elif word.lower().endswith('y'):
-                    w = word[:-1]
-                    
-                    if nltk.pos_tag((w,))[0][1][:2] in ('JJ', 'RB'):
-                        word = w
-                        convert = True
-            
                 words.append(BLTNoun(self.radicals_for((eng.singular_noun(word) or word).lower()),
-                    plural=(tag == 'NNS'),
+                    plural=(tag == 'NNS' or bool(eng.singular_noun(word))),
                     possessive=(index < len(tags) - 1 and tags[index + 1][1] == 'POS'),
                     convert=convert
                 ))
@@ -416,8 +458,8 @@ class BLTLanguage(object):
                 genit = None
                 neg = False
             
-                for d in ('in', 'un', 'non-', 'non', 'de'):
-                    if word.lower().startswith(d):
+                for d in ('dis', 'un', 'non-', 'non', 'dis'):
+                    if word.lower().startswith(d) and nltk.pos_tag((word[len(d):],))[0][1][:2] in ('JJ', 'NN', 'RB'):
                         neg = True
                         word = word[len(d):]
                         break
@@ -427,17 +469,36 @@ class BLTLanguage(object):
                     genit = 'genitive'
                     
                 elif word.lower().endswith('ful'):
-                    word = re.sub(r'iful$', 'y', word)
+                    word = re.sub(r'ful$', '', word)
+                    word = re.sub(r'i$', 'y', word)
+                    genit = 'genitive'
+                    
+                elif word.lower().endswith('ous'):
+                    if word[-2] in remove_ous:
+                        word = re.sub(r'ous$', '', word)
+                        
+                    else:
+                        word = re.sub(r'ous$', 'e', word)
+                        
+                    word = re.sub(r'i$', 'y', word)
+                    word = re.sub(r'cy$', 'sh', word)
                     genit = 'genitive'
                     
                 elif word.lower().endswith('y'):
-                    if word.upper()[-2] in remove_y:
+                    if word[-2].upper() in remove_y.upper():
                         word = re.sub(r'y$', '', word)
                     
                     else:
                         word = re.sub(r'y$', 'e', word)
                         
                     genit = 'genitive'
+                    
+                else:
+                    for d in ('in', 'de'):
+                        if word.lower().startswith(d) and nltk.pos_tag((word[len(d):],))[0][1][:2] in ('JJ', 'NN'):
+                            neg = True
+                            word = word[len(d):]
+                            break
                     
                 if tag == 'JJR':
                     word = re.sub(r'i$', 'y', word[:-2])
@@ -452,13 +513,19 @@ class BLTLanguage(object):
                 ))
                 
             elif tag == 'PRP':
+                
+            
                 words.append(BLTDefinitePronoun(person=pronoun_people[re.sub('SELF$', '', word.upper())], plural=pronoun_plurality[re.sub('SELF$', '', word.upper())]))
                      
             elif tag == 'PRP$':
                 words.append(BLTDefinitePronoun('genitive', person=genitive_pronoun_people[word.upper()], plural=genitive_pronoun_plurality[word.upper()]))
                 
-            elif tag in (',', '.', ':'):
+            elif tag in ',.:':
                 words.append(BLTRaw(word, False))
+                prev = None
+                past_bracket = None
+                lprev = None
+                continue
                 
             elif tag[:2] == 'VB':
                 if index + 1 < len(tags) and tags[index + 1][1][:2] == 'VB' and word.upper() in tobe_people:
@@ -466,12 +533,20 @@ class BLTLanguage(object):
                     historic.append((word, tag))
                     continue
             
-                passive = tag in ('VBN', 'VBG') and prev[1][2:] == 'VB'
+                passive = tag in ('VBN', 'VBG') and prev != None and prev[1][2:] == 'VB'
                 negate = prev is not None and len({prev[0].lower(), (prev[2] or ('',))[0].lower()} & {'no', 'not'}) == 1
                 tense = None
                 person = 'third'
                 plural = False
                 kind = 'indicative'
+                
+                for pref in ('dis', 'un', 'de', 'non', 'non-'):
+                    w = word[len(pref):]
+                
+                    if word.startswith(pref) and nltk.pos_tag((w[len(pref):],))[0][1][:2] in ('VB', 'NN', 'RB'):
+                        negate = True
+                        word = w
+                        break
             
                 if index == 0:
                     kind = 'imperative'
@@ -485,7 +560,7 @@ class BLTLanguage(object):
                 elif prev != None and prev[1] == 'TO':
                     kind = 'infinitive'
                  
-                pointer = timeout = index
+                pointer = timeout = min(index + 1, len(tags) - 1)
                 pperson = None
                 
                 while pointer > 0 and timeout > 0:
@@ -505,7 +580,7 @@ class BLTLanguage(object):
                             pperson = tobe_people[pword.upper()]
                             person = pperson or person
                             plural = tobe_plurality[pword.upper()]
-                            passive = True
+                            passive = tag != 'VBG'
                             
                         if not pperson:
                             if ptag[:2] == 'NN':
@@ -522,7 +597,7 @@ class BLTLanguage(object):
                     if prev[0].upper() in auxiliary_tenses:
                         tense = auxiliary_tenses[prev[0].upper()]
                         
-                    elif (prev[2][0].upper() + ' ' + prev[0].upper()) in auxiliary_tenses:
+                    elif prev[2] is not None and (prev[2][0].upper() + ' ' + prev[0].upper()) in auxiliary_tenses:
                         tense = auxiliary_tenses[(prev[2][0].upper() + ' ' + prev[0].upper())]
                         
                     elif prev[1][:2] == 'VB':
@@ -531,9 +606,10 @@ class BLTLanguage(object):
                 else:
                     tense = verbal_tenses.get(tag, None)
                 
+                past_bracket = False
                 words.append(BLTVerb(self.radicals_for(lemmatizer.lemmatize(word.lower(), 'v')), person, kind, passive, plural, negate, tense))
             
-            elif tag in ('WRB', 'RB', 'MD', 'DT', 'CC', 'IN', 'TO'):
+            elif tag in ('WRB', 'RB', 'MD', 'DT', 'CC', 'IN', 'TO', 'UH'):
                 adverb = False
                 w = None
             
@@ -557,6 +633,12 @@ class BLTLanguage(object):
                 
             prev = (word, tag, (historic[-1] if len(historic) > 0 else None))
             historic.append((word, tag))
+            
+            if prev != lprev:
+                words[-1].spacing = True
+                
+            past_bracket = False
+            lprev = prev
             
         return (self.synthesize(words), words)
         

@@ -28,7 +28,7 @@ console.terminator = ""
 
 logging.getLogger('').addHandler(console)
 
-prefix = "^"
+prefix = "´"
 
 class BLTBot(SingleServerIRCBot):
     def __init__(self, server, port, channels):
@@ -128,6 +128,8 @@ class BLTBot(SingleServerIRCBot):
 if __name__ == "__main__":
     conns = {}
     
+    running = True
+    
     try:
         for s in json.load(open("irc.json")):
             conns[s[1]] = BLTBot(s[0], 6667, s[2:])
@@ -141,12 +143,13 @@ if __name__ == "__main__":
             
             Thread(target=safestart, name="Bot: {}".format(s[0])).start()
             
-        while True:
+        while running:
             time.sleep(1)
             
     except KeyboardInterrupt:
         print("Exiting {}...".format(', '.join(conns.keys())))
         
+        running = False
         dead = 0
         
         def kill(conn):
