@@ -2,16 +2,63 @@ import re
 import sys
 import nltk
 import inflect
+import random
 
 from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.corpus import names
 from nltk.corpus import wordnet as wn
+
+labeled_names = ([(name, 'male') for name in names.words('male.txt')] + [(name, 'female') for name in names.words('female.txt')])
+random.shuffle(labeled_names)
+
+def gender_features(word):
+    res = {
+        'last-letter': word[-1].lower(),
+        'first-letter': word[0].lower(),
+    }
+    
+    for letter in 'abcdefghijklmnopqrstuvwxyz':
+        res['count: ' + letter] = word.lower().count(letter)
+        res['has: ' + letter] = (letter in word.lower())
+        
+    encounters = []
+    encounters2 = []
+    enc = ''
+    vowels = "aeiou"
+    
+    for l in word.lower():
+        if l in vowels:
+            enc += l
+            
+        elif len(enc) > 1:
+            encounters.append(enc)
+            enc = ''
+        
+    enc = ''
+        
+    for l in word.lower():
+        if l not in vowels:
+            enc += l
+            
+        elif len(enc) > 1:
+            encounters2.append(enc)
+            enc = ''
+        
+    res['vowel encounters'] = ':'.join(set(encounters))
+    res['consonant encounters'] = ':'.join(set(encounters2))
+    
+    return res
+
+featuresets = [(gender_features(n), gender) for (n, gender) in labeled_names]
+train_set, test_set = featuresets[500:], featuresets[:500]
+genderifier = nltk.NaiveBayesClassifier.train(train_set)
 
 #=============
 # Credits to bogs @ https://stackoverflow.com/a/16752477/5129091
 # This is a modified version of their code.
 def nounify(adjective_word):
     """ Transform a verb to the closest noun: die -> death """
-    verb_synsets = wn.synsets(adjective_word, pos=wn.ADJECTIVE)
+    adjective_synsets = wn.synsets(adjective_word, pos=wn.ADJ)
 
     # Word not found
     if not adjective_synsets:
@@ -19,7 +66,7 @@ def nounify(adjective_word):
 
     # Get all adjective lemmas of the word
     adjective_lemmas = [l for s in adjective_synsets \
-                   for l in s.lemmas() if s.name().split('.')[1] == wn.ADJECTIVE]
+                   for l in s.lemmas() if s.name().split('.')[1] == wn.ADJ]
 
     # Get related forms
     derivationally_related_forms = [(l, l.derivationally_related_forms()) \
@@ -72,7 +119,7 @@ class BatchDefs(object):
             
         return res
         
-    def unescape_batch(self, s, replace_vars=True, default_replace='(?)'):
+    def unescape_batch(self, s, replace_vars=True, default_replace='(\\1?)'):
         s = s.replace('^>', '>').replace('^<', '<').replace('^^', '^').replace('^=', '=')
         
         if replace_vars:
@@ -86,7 +133,7 @@ class BatchDefs(object):
                     for g in sr.groups():
                         print("WARNING: Not found: {}".format(g))
             
-                s = re.sub(r'(?<!\%)\%.+?\%(?!%)', default_replace, s)
+                s = re.sub(r'(?<!\%)\%(.+?)\%(?!%)', default_replace, s)
                 
         return s.replace('%%', '%')
         
@@ -145,20 +192,21 @@ class BLTAdjective(object):
             raise ValueError("Invalid adjective relativity value: " + repr(relativity))
         
     def synthesize(self, defs):
-        return defs.unescape_batch(('%negation.adjective%' if self.negated else '') + '%ligation%'.join('%rad.{}%'.format(r) for r in self.radicals) + (' ' if defs.sets['negation.type'] == 'adverb' else '') + ('%ending.adjective.{}%'.format(self.genitivity) if self.genitivity else '') + ('%ending.adjective.{}%'.format(self.relativity) if self.relativity else ''))
+        return defs.unescape_batch(('%negation.adjective%' if self.negated else '') + (' ' if defs.sets['negation.type'] == 'adverb' else '') + '%ligation%'.join('%rad.{}%'.format(r) for r in self.radicals) + ('%ending.adjective.{}%'.format(self.genitivity) if self.genitivity else '') + ('%ending.adjective.{}%'.format(self.relativity) if self.relativity else ''))
 
 class BLTNoun(object):
-    def __init__(self, radicals, gender='male', degree=None, plural=False, convert=False, possessive=False):
+    def __init__(self, radicals, gender='male', degree=None, plural=False, convert=False, possessive=False, negate=False):
         self.radicals = radicals
         self.gender = gender
         self.degree = degree
+        self.negate = negate
         self.plural = plural
         self.convert = convert
         self.possessive = possessive
         self.spacing = True
         
     def synthesize(self, defs):
-        return defs.unescape_batch('%ligation%'.join('%rad.{}%'.format(r) for r in self.radicals) + ('%ending.nominal%' if self.convert else '') + '%ending.nominal.gender.{}%'.format(self.gender) + ('%ending.nominal.degree.{}%'.format(self.degree) if self.degree else '') + ('%ending.nominal.plural%' if self.plural else '') + ('%ending.nominal.genitive%' if self.possessive else ''))
+        return defs.unescape_batch(('%negation.nominal%' if self.negate else '') + '%ligation%'.join('%rad.{}%'.format(r) for r in self.radicals) + ('%ending.nominal%' if self.convert else '') + '%ending.nominal.gender.{}%'.format(self.gender) + ('%ending.nominal.degree.{}%'.format(self.degree) if self.degree else '') + ('%ending.nominal.plural%' if self.plural else '') + ('%ending.nominal.genitive%' if self.possessive else ''))
         
 class BLTGeneric(object):
     def __init__(self, radical, plural=False, possessive=False):
@@ -183,14 +231,15 @@ class BLTAdverb(object):
         return defs.unescape_batch('%ligation%'.join('%rad.{}%'.format(r) for r in self.radicals) + ('%adverb.adjective%' if self.adj else '%adverb.verbal%'))
  
 class BLTRaw(object):
-    def __init__(self, text, spacing=True, plural=False, possessive=False):
+    def __init__(self, text, spacing=True, plural=False, possessive=False, gender=None):
         self.text = text
         self.spacing = spacing
         self.plural = plural
         self.possessive = possessive
+        self.gender = gender
         
     def synthesize(self, defs):
-        return defs.unescape_batch(self.text + ('%ending.plural%' if self.plural else '') + ('%ending.nominal.genitive%' if self.possessive else ''))
+        return defs.unescape_batch(self.text + ('%ending.plural%' if self.plural else '') + ('%ending.nominal.genitive%' if self.possessive else '') + ('-%ending.nominal.gender.{}%'.format(self.gender) if self.gender is not None else ''))
  
 class BLTDefinitePronoun(object):
     def __init__(self, kind="nominal", person="third", plural=False):
@@ -474,6 +523,24 @@ class BLTLanguage(object):
                 
             elif tag in ('NN', 'NNS'):
                 convert = False
+                neg = False
+                
+                for d in ('dis', 'un', 'non-', 'non', 'dis'):
+                    if word.lower().startswith(d):
+                        if nltk.pos_tag((word[len(d):],))[0][1][:2] in ('JJ', 'NN', 'RB'):
+                            neg = True
+                            word = word[len(d):]
+                            break
+                            
+                        elif nltk.pos_tag((word[len(d):],))[0][1][:2] == 'VB' and word.lower().endswith('ed'):
+                            neg = True
+                            word = word[len(d):-1]
+                            break
+                            
+                if len(word) > 1 and nltk.pos_tag((word[:-1],))[0][1][:2] == 'VB' and word.lower().endswith('ed'):
+                    neg = True
+                    word = word[:-1]
+                    break
                 
                 if '-' in word and word.lower() not in self.composites:
                     # Add implicit composite word.
@@ -487,13 +554,16 @@ class BLTLanguage(object):
                         convert = True
             
                 words.append(BLTNoun(self.radicals_for((eng.singular_noun(word) or word).lower()),
+                    gender=genderifier.classify(gender_features((eng.singular_noun(word) or word).lower())),
                     plural=(tag == 'NNS' or bool(eng.singular_noun(word))),
                     possessive=(index < len(tags) - 1 and tags[index + 1][1] == 'POS'),
-                    convert=convert
+                    convert=convert,
+                    negate=neg
                 ))
                         
             elif tag in ('NNP', 'NNPS'):
                 words.append(BLTRaw(word,
+                    gender=genderifier.classify(gender_features((eng.singular_noun(word) or word).lower())),
                     plural=(tag == 'NNPS'),
                     possessive=index < len(tags) - 1 and tags[index + 1][1] == 'POS'
                 ))
@@ -553,7 +623,7 @@ class BLTLanguage(object):
                     genit = 'genitive'
                     
                 else:
-                    for d in ('in', 'de'):
+                    for d in ('in'):
                         if word.lower().startswith(d) and nltk.pos_tag((word[len(d):],))[0][1][:2] in ('JJ', 'NN'):
                             neg = True
                             word = word[len(d):]
@@ -563,19 +633,19 @@ class BLTLanguage(object):
                     word = re.sub(r'i$', 'y', word[:-2])
                 
                 if tag == 'JJS':
-                    word = re.sub(r'i', 'y', word[:-3])
+                    word = re.sub(r'i$', 'y', word[:-3])
             
-                base = nounify(word)
+                # base = nounify(word)
                 
-                if len(base) < 1:
-                    base = word
+                # if len(base) < 1:
+                #     base = word
                     
-                else:
-                    base = base[0][0]
+                # else:
+                #     base = base[0][0]
                     
-                print(word, base)
+                # print(word, base)
             
-                words.append(BLTAdjective(self.radicals_for(base),
+                words.append(BLTAdjective(self.radicals_for(word),
                     genitivity=genit,
                     relativity=('comparative' if tag == 'JJR' else ('superlative' if tag == 'JJS' else None)),
                     negated=neg or (prev is not None and prev[0].upper() in ('NO', 'NOT'))
@@ -598,7 +668,7 @@ class BLTLanguage(object):
                 
             elif tag[:2] == 'VB':
                 if index + 1 < len(tags) and tags[index + 1][1][:2] == 'VB' and word.upper() in tobe_people:
-                    prev = (word, tag, (historic[index - 1] if index > 0 else None))                    
+                    prev = (word, tag, (historic[index - 1] if index > 0 and len(historic) > index - 1 else None))                    
                     historic.append((word, tag))
                     continue
             

@@ -13,3 +13,17 @@ def assets(path):
 @app.route("/translate", methods=["POST"])
 def translate():
     return loadlang("Latko").translate(request.json['data'])[0]
+
+@app.route("/addradical", methods=["POST"])
+def add_radical():
+    l = loadlang("Latko")
+    l.add_radical(request.json['key'], request.json['value'])
+    open("lang_Latko.bat", "w").write(l.dumps())
+    return "SUCCESS"
+
+@app.route("/addcomposite", methods=["POST"])
+def add_composite():
+    l = loadlang("Latko")
+    l.add_composite(request.json['key'], *request.json['radicals'])
+    open("lang_Latko.bat", "w").write(l.dumps())
+    return "SUCCESS"

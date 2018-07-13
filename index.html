@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 
-<html>
-    </head>
+<html lang="en-US" version="5">
+    <head>
         <meta name="description" content="Unreal Latko Translator -  BLT Demonstration.">
         <meta name="keywords" content="latko,translator,python,demo">
         <meta name="author" content="Gustavo6046 (Gustavo R. Rehermann)">
@@ -10,9 +10,65 @@
         <link rel="icon" href="web/UnrealFavIco.png" type="image/png">
         <title>Latko Translator - BLT Demo</title>
         
+        <link rel="stylesheet" href="https://unpkg.com/simplebar@latest/dist/simplebar.css" />
         <link href="https://fonts.googleapis.com/css?family=Coda+Caption:800" rel="stylesheet"> 
         <link href="https://fonts.googleapis.com/css?family=PT+Mono" rel="stylesheet"> 
+        
         <style>
+            #separator {
+                height: 25px;
+            }
+        
+            #form-english {
+                width: 65%;
+                flex: initial;
+            }
+        
+            .form-line {
+                display: flex;
+                flex-direction: row;
+                width: 95%;
+                margin: 3px;
+                padding: 0px;
+                margin-left: 5px;
+                margin-right: 5px;
+                font-size: 14px;
+            }
+            
+            .bottom-line {
+                position: absolute;
+                bottom: 20px;
+            }
+            
+            .form-line > input, .form-line > button {
+                flex: 1;
+            }
+            
+            button {
+                height: 24px;
+                background-color: #DDD;
+                border: 1px solid black;
+                font-family: "Verdana", sans-serif;
+                font-size: 15px;
+                margin: 8px;
+            }
+        
+            .translator-content {
+                overflow-x: hidden!important;
+                overflow-y: hidden!important;
+                box-sizing: border-box!important;
+                min-height: 100%!important;
+            }
+            
+            .tsscrollbar {
+                background-color: #119011;
+                position: absolute;
+                right: 2px;
+                width: 8px;
+                min-height: 10px;
+                mix-blend-mode: color-dodge;
+            }
+            
             html, body {
                 width: 100%;
                 max-width: 100%;
@@ -28,6 +84,25 @@
                 flex-direction: column;
                 align-content: stretch;
                 margin: 0px;
+            }
+            
+            #buttonContainer {
+                position: relative;
+                width: 100%;
+            }
+            
+            #addForm {
+                position: absolute;
+                // left: -30%;
+                top: 50%;
+                width: 35%;
+                border: 5px ridge #252;
+                transform: translate(-1%, -50%);
+                border-top-right-radius: 15px;
+                border-bottom-right-radius: 15px;
+                color: #FFF;
+                background-color: #022002;
+                font-family: "Verdana", sans-serif;
             }
             
             .centertext {
@@ -53,6 +128,14 @@
                 text-align: center;
                 margin: 0px;
                 font-size: 2.5em;
+            }
+            
+            .unknown-rad {
+                color: #DD6;
+            }
+            
+            .unknown-rad:hover {
+                color: #412;
             }
             
             #input {
@@ -82,6 +165,15 @@
                 display: flex;
                 align-items: center;
                 position: relative;
+            }
+            
+            #hide-add-form {
+                position: absolute;
+                background-color: #DDD;
+                border: 1px solid black;
+                left: 4px;
+                font-family: "Verdana", sans-serif;
+                font-size: 17px;
             }
             
             #centered {
@@ -115,22 +207,33 @@
             
             #translated {
                 position: absolute;
+                width: 73.5vh;
                 max-width: 75vh;
-                max-height: 32.5vh;
+                height: 33vh;
                 left: 50%;
                 transform: translate(-50%, 0%);
-                top: 17%;
+                top: 14.5%;
                 color: #20CC18;
                 mix-blend-mode: color-dodge;
                 overflow-y: auto;
+                overflow-x: hidden;
+            }
+            
+            #target {
+                width: 100%;
+                height: 100%;
+                width: 97%;
             }
         </style>
         
-        <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script src="https://unpkg.com/simplebar@latest/dist/simplebar.js"></script>
         
         <script>
             writing = 0;
             pending = null;
+            word = null;
+            formHideLeft = 0;
         
             setInterval(function() {
                 if ( writing == 0 && pending != null )
@@ -141,7 +244,103 @@
                 
                 writing = Math.max(writing - 1, 0);
             }, 100);
-        
+            
+            examples = [
+                'boridnkan',
+                'boran',
+                'sdokan',
+                'dorikan',
+                'boyala',
+                'parkala',
+                'nekenen',
+                'bitufon',
+                'liscufon',
+                'liscumika',
+            ]
+            
+            addWord = function addWord(lword)
+            {
+                word = lword;
+                document.getElementById('form-latko').value = examples[Math.floor(Math.random() * examples.length)];
+                document.getElementById('form-composites').value = "red sphere food";
+                showForm();
+            }
+            
+            addRadical = function addRadical(latko)
+            {
+                $.post({
+                    url: "./addradical",
+                    contentType: "application/json;charset=UTF-8",
+                    data: JSON.stringify({
+                        key: word,
+                        value: latko
+                    }),
+                    success: function(data, status, req) { setTimeout(translate, 100); }
+                });
+                hideForm();
+            }
+            
+            addComposite = function addComposite(words)
+            {
+                $.post({
+                    url: "./addcomposite",
+                    contentType: "application/json;charset=UTF-8",
+                    data: JSON.stringify({
+                        key: word,
+                        radicals: words
+                    }),
+                    success: function(data, status, req) { setTimeout(translate, 100) }
+                });
+                hideForm();
+            }
+            
+            showForm = function showForm()
+            {
+                var interv = null;
+                var pos = formHideLeft;
+                
+                function show()
+                {
+                    if ( pos >= 0 )
+                    {
+                        document.getElementById('addForm').style.left = '0px';
+                        clearInterval(interv);
+                    }
+                    
+                    else
+                    {
+                        pos += 5;
+                        document.getElementById('addForm').style.left = pos + "px";
+                    }
+                }
+            
+                if ( word != null )
+                    interv = setInterval(show, 5);
+            }
+            
+            hideForm = function hideForm()
+            {
+                var interv = null;
+                var pos = 0;
+            
+                function hide()
+                {
+                    if ( pos < formHideLeft )
+                    {
+                        document.getElementById('addForm').style.left = formHideLeft + 'px';
+                        clearInterval(interv);
+                    }
+                    
+                    else
+                    {
+                        pos -= 5;
+                        document.getElementById('addForm').style.left = pos + "px";
+                    }
+                }
+                
+                interv = setInterval(hide, 5);
+            }
+            
             translate = function translate(data, target)
             {
                 if ( target.innerHTML.length == 0 ) target.innerHTML = '...';
@@ -152,6 +351,8 @@
                         contentType: "application/json;charset=UTF-8",
                         success: function(data, status, req)
                         {
+                            data = data.replace(/\(rad\.(.+?)\?\)/g, '<span class="unknown-rad" onclick="addWord(\'$1\'.toLowerCase()); return false">&lt;$1?&gt;</span>')
+                            data = data.replace(/\((.+?)\?\)/g, "")
                             target.innerHTML = data;
                             writing = false;
                         }
@@ -165,18 +366,49 @@
     <body>
         <div class="centertext gradtext">English to</div>
         <h1 class="gradtext">Latko</h1>
-        <textarea id="input" oninput="translate(this.value, document.getElementById('translated'));"></textarea>
+        <textarea id="input" oninput="translate(this.value, document.getElementById('target'));"></textarea>
+        
         <div id="output">
             <div id="translator">
                 <div id="centered">
                     <!-- <image src="web/UnrealTranslator.png" /> -->
-                    <div id="translated"></div>
+                    <div id="translated"><div id="target"></div></div>
                 </div>           
             </div>
         </div>
         
+        <div id="addForm">
+            <div id="buttonContainer">
+                <button type="button" id="hide-add-form" onclick="hideForm()">&lt;</button>
+            </div>
+            <div id="separator"></div>
+            <div class="form-line"> <b>Latko radical:</b> <input type="text" id="form-latko" value="" /></div>
+            <div class="form-line"><button type="button" onclick="addRadical(document.getElementById('form-latko').value)">Add Radical</button></div>
+            
+            <div class="form-line"><b>English parts:</b> <input type="text" id="form-composites" value="" /></div>
+            <div class="form-line"><button type="button" onclick="addComposite(document.getElementById('form-composites').value.split(' '))">Add Composite</button></div>
+        </div>
+        
         <script>
-            document.getElementById('input').value = '';
+            if ( document.getElementById('input').value != '' )
+                translate(document.getElementById('input').value, document.getElementById('target'));
+            
+            var bar = new SimpleBar(document.getElementById('translated'), {
+                autoHide: false,
+                
+                classNames: {
+                    content: 'translator-content',
+                    scrollContent: 'simplebar-scroll-content',
+                    track: 'simplebar-track',
+                    scrollbar: 'tsscrollbar'
+                }
+            });
+            
+            formHideLeft = document.getElementById('addForm').getBoundingClientRect().left - document.getElementById('addForm').getBoundingClientRect().right;
+            
+            document.getElementById('addForm').style.left = formHideLeft + 'px';
+            
+            // console.log(bar.getScrollElement());
         </script>
     </body>
 </html>

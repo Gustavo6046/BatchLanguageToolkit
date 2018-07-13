@@ -49,9 +49,11 @@ GOTO :MKNEGATION
 :MKNEG.OK
 SET /P negation.adjective=Adjective negation prefix/adverb ([not] big): 
 SET /P negation.verbal=Verbal negation prefix ([not] walking): 
+SET /P negation.nominal=Nominal negation prefix ([un]intelligent): 
 
 ECHO SET negation.type=%negation.type%>>lang_%langname%.bat
 ECHO SET negation.adjective=%negation.adjective%>>lang_%langname%.bat
+ECHO SET negation.nominal=%negation.nominal%>>lang_%langname%.bat
 ECHO SET negation.verbal=%negation.verbal%>>lang_%langname%.bat
 
 GOTO :MKENDING
