@@ -140,6 +140,8 @@
             
             #input {
                 margin: 10px;
+                padding: 10px;
+                border-radius: 15px;
                 flex: 1;
                 margin-left: 15em;
                 margin-right: 15em;
@@ -228,139 +230,7 @@
         
         <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
         <script src="https://unpkg.com/simplebar@latest/dist/simplebar.js"></script>
-        
-        <script>
-            writing = 0;
-            pending = null;
-            word = null;
-            formHideLeft = 0;
-        
-            setInterval(function() {
-                if ( writing == 0 && pending != null )
-                {
-                    pending();
-                    pending = null;
-                }
-                
-                writing = Math.max(writing - 1, 0);
-            }, 100);
-            
-            examples = [
-                'boridnkan',
-                'boran',
-                'sdokan',
-                'dorikan',
-                'boyala',
-                'parkala',
-                'nekenen',
-                'bitufon',
-                'liscufon',
-                'liscumika',
-            ]
-            
-            addWord = function addWord(lword)
-            {
-                word = lword;
-                document.getElementById('form-latko').value = examples[Math.floor(Math.random() * examples.length)];
-                document.getElementById('form-composites').value = "red sphere food";
-                showForm();
-            }
-            
-            addRadical = function addRadical(latko)
-            {
-                $.post({
-                    url: "./addradical",
-                    contentType: "application/json;charset=UTF-8",
-                    data: JSON.stringify({
-                        key: word,
-                        value: latko
-                    }),
-                    success: function(data, status, req) { setTimeout(translate, 100); }
-                });
-                hideForm();
-            }
-            
-            addComposite = function addComposite(words)
-            {
-                $.post({
-                    url: "./addcomposite",
-                    contentType: "application/json;charset=UTF-8",
-                    data: JSON.stringify({
-                        key: word,
-                        radicals: words
-                    }),
-                    success: function(data, status, req) { setTimeout(translate, 100) }
-                });
-                hideForm();
-            }
-            
-            showForm = function showForm()
-            {
-                var interv = null;
-                var pos = formHideLeft;
-                
-                function show()
-                {
-                    if ( pos >= 0 )
-                    {
-                        document.getElementById('addForm').style.left = '0px';
-                        clearInterval(interv);
-                    }
-                    
-                    else
-                    {
-                        pos += 5;
-                        document.getElementById('addForm').style.left = pos + "px";
-                    }
-                }
-            
-                if ( word != null )
-                    interv = setInterval(show, 5);
-            }
-            
-            hideForm = function hideForm()
-            {
-                var interv = null;
-                var pos = 0;
-            
-                function hide()
-                {
-                    if ( pos < formHideLeft )
-                    {
-                        document.getElementById('addForm').style.left = formHideLeft + 'px';
-                        clearInterval(interv);
-                    }
-                    
-                    else
-                    {
-                        pos -= 5;
-                        document.getElementById('addForm').style.left = pos + "px";
-                    }
-                }
-                
-                interv = setInterval(hide, 5);
-            }
-            
-            translate = function translate(data, target)
-            {
-                if ( target.innerHTML.length == 0 ) target.innerHTML = '...';
-                pending = function() {
-                    $.post({
-                        url: "./translate",
-                        data: JSON.stringify({data: data}, null, '\t'),
-                        contentType: "application/json;charset=UTF-8",
-                        success: function(data, status, req)
-                        {
-                            data = data.replace(/\(rad\.(.+?)\?\)/g, '<span class="unknown-rad" onclick="addWord(\'$1\'.toLowerCase()); return false">&lt;$1?&gt;</span>')
-                            data = data.replace(/\((.+?)\?\)/g, "")
-                            target.innerHTML = data;
-                            writing = false;
-                        }
-                    });
-                };
-                writing = 2;
-            }
-        </script>
+        <script src="./index.js"></script>
     </head>
     
     <body>
@@ -404,9 +274,14 @@
                 }
             });
             
+            $("#input")[0].oninput = function() {
+                translate($("#input")[0].value, $('#target')[0]);
+            };
+            
             formHideLeft = document.getElementById('addForm').getBoundingClientRect().left - document.getElementById('addForm').getBoundingClientRect().right;
             
             document.getElementById('addForm').style.left = formHideLeft + 'px';
+            setInterval(function() { if ( hidden ) document.getElementById('addForm').style.left = formHideLeft + 'px'; }, 250);
             
             // console.log(bar.getScrollElement());
         </script>

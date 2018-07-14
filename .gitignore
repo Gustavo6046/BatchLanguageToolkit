@@ -111,3 +111,4 @@ venv.bak/
 !irc.json
 /webconfig.bat
 /brython_modules.log.txt
+/experiments
