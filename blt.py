@@ -371,6 +371,8 @@ verbal_tenses = {
 }
 
 auxiliary_tenses = {
+    "WAS": "transpast",
+    "WERE": "transpast",
     "WILL": "future",
     "WOULD": "subfuture",
     "HAVE": "subpresent",
@@ -379,6 +381,7 @@ auxiliary_tenses = {
     "USED TO": "pluperfect",
     "HAVE BEEN": "pseudopast",
     "WOULD HAVE": "subpast",
+    "WILL HAVE": "pseudofuture",
 }
         
 class BLTLanguage(object):
@@ -534,7 +537,7 @@ class BLTLanguage(object):
             elif tag == 'POS':
                 continue
                                 
-            elif tag == 'PRP' or (word.lower().endswith('self') and len(word) > 4 and nltk.pos_tag(word[:-4]) == 'PRP'):
+            elif tag == 'PRP' or (word.lower().endswith('self') and len(word) > 4 and nltk.pos_tag((word[:-4],))[0][1][:3] == 'PRP'):
                 if word.upper().endswith('SELF'):
                     word = word[:-4]
                 

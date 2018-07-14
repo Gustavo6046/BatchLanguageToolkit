@@ -184,6 +184,7 @@ ECHO Remember, present verbs have NO time suffix.
 ECHO.
 
 SET /P time.perfect=Simple past verbal time suffix (made instead of make, but suffix): 
+SET /P time.transpast=Transpast verbal time suffix (was making): 
 SET /P time.pluperfect=Pluperfect past verbal time suffix (used to make): 
 SET /P time.preteritous=Preteritous past verbal time suffix (had made): 
 SET /P time.pseudopast=Pseudopast/continuous verbal time suffix (have been making): 
@@ -191,6 +192,7 @@ SET /P time.subpast=Subpast verbal time suffix (would have maken):
 SET /P time.subpresent=Simple subpresent verbal time suffix (have made): 
 SET /P time.future=Simple future verbal time suffix (will make): 
 SET /P time.subfuture=Subfuture verbal time suffix (would make): 
+SET /P time.pseudofuture=Pseudofuture verbal time suffix (will have made): 
 
 ECHO SET time.perfect=%time.perfect%>>lang_%langname%.bat
 ECHO SET time.pluperfect=%time.pluperfect%>>lang_%langname%.bat
