@@ -15,3 +15,11 @@
             
         todo: {}
         done: []
+        
+    -   name: "v2018.07.14.1"
+        changes:
+            - "Fixed multiple issues with prefies."
+            - "Added extremely experimental (and slow!) reverse translator."
+            
+        todo: {}
+        done: []
